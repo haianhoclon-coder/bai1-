@@ -1,0 +1,91 @@
+#include <WiFi.h>
+
+const char* ssid = "TP-Link_9430";
+const char* password = "51563103";
+
+WiFiServer webServer(80);
+const int led1 = 2;
+String led1Status = "OFF";
+String header;
+unsigned long currentTime = millis();
+unsigned long previousTime = 0;
+const long timeoutTime = 1000;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(led1, OUTPUT);
+  digitalWrite(led1, LOW);
+  Serial.print("Setting AP mode...");
+  WiFi.softAP(ssid, password);
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+  webServer.begin();
+}
+
+void loop() {
+  WiFiClient webClient = webServer.available();
+  if (webClient) {
+    currentTime = millis();
+    previousTime = currentTime;
+    Serial.println("New web client");
+    String currentLine = "";
+
+    while (webClient.connected() && currentTime - previousTime <= timeoutTime) {
+      currentTime = millis();
+      if (webClient.available()) {
+        char c = webClient.read();
+        Serial.write(c);
+        header += c;
+
+        if (c == '\n') {
+          if (currentLine.length() == 0) {
+            webClient.println("HTTP/1.1 200 OK");
+            webClient.println("Content-type:text/html");
+            webClient.println("Connection: close");
+            webClient.println();
+
+            if (header.indexOf("GET /led1/on") >= 0) {
+              Serial.println("Led1 on");
+              led1Status = "on";
+              digitalWrite(led1, HIGH);
+            } 
+            else if (header.indexOf("GET /led1/off") >= 0) {
+              Serial.println("Led1 off");
+              led1Status = "off";
+              digitalWrite(led1, LOW);
+            }
+
+            webClient.println("<!DOCTYPE html><html>");
+            webClient.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+            webClient.println("<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css\">");
+            webClient.println("<body><h1 style=\"color:Tomato\">ESP32 Access Point Web Server</h1>");
+            webClient.println("<h2 style=\"color:#077a39\"><a href=\"https://khoadientu.uneti.edu.vn\">THUC TAP LAP TRINH IOT</a></h2>");
+            webClient.println("<i class=\"fa fa-home\" aria-hidden=\"true\"></i>");
+            webClient.println("<p>Led1 - State " + led1Status + "</p>");
+
+            if (led1Status == "off") {
+              webClient.println("<p><a href=\"/led1/on\"><button class=\"button\">ON</button></a></p>");
+            } 
+            else {
+              webClient.println("<p><a href=\"/led1/off\"><button class=\"button button2\">OFF</button></a></p>");
+            }
+
+            webClient.println("</body></html>");
+            webClient.println();
+            break;
+          } else {
+            currentLine = "";
+          }
+        } 
+        else if (c != '\r') {
+          currentLine += c;
+        }
+      }
+    }
+
+    header = "";
+    webClient.stop();
+    Serial.println("Client disconnected.\n");
+  }
+}
