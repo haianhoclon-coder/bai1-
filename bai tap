@@ -1,0 +1,17 @@
+#include <Arduino.h>
+
+// định nghĩa chân
+#define Led 3
+
+void setup() {
+  // khai báo chân
+  pinMode(Led, OUTPUT);
+}
+
+void loop() {
+  // blink led
+  digitalWrite(Led, HIGH);
+  delay(1000);
+  digitalWrite(Led, LOW);
+  delay(1000);
+}
