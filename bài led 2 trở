@@ -1,0 +1,35 @@
+#include <Arduino.h>
+
+const int led = 2;              // Chân nối LED
+const int button = 16;          // Chân nút nhấn
+volatile bool ledstates = 0;    // Trạng thái LED (volatile để ISR truy cập)
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED; // Mutex bảo vệ trong ISR
+
+unsigned long lastInterruptTime = 0;
+const unsigned long debounceDelay = 200; // Thời gian chống dội nút (200 ms)
+
+void IRAM_ATTR buttonPush() {
+  unsigned long now = millis();
+  if (now - lastInterruptTime > debounceDelay) {  // Kiểm tra chống dội
+    portENTER_CRITICAL_ISR(&mux);   // Khóa ISR
+    ledstates = !ledstates;         // Đảo trạng thái LED
+    digitalWrite(led, ledstates);   // Xuất ra LED
+    Serial.println("Button Pushed!!!"); // In ra Serial (debug)
+    portEXIT_CRITICAL_ISR(&mux);    // Mở khóa ISR
+
+    lastInterruptTime = now;
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(button, INPUT_PULLDOWN);
+  attachInterrupt(digitalPinToInterrupt(button), buttonPush, FALLING);
+
+  pinMode(led, OUTPUT);
+  digitalWrite(led, ledstates);
+}
+
+void loop() {
+  // Không làm gì trong loop
+}
